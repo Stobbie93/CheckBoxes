@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>150 Checkbox Tracker</title>
+<style>
+  :root {
+    --box-size: 42px;
+    --gap: 8px;
+  }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #222;
+  }
+  h1 {
+    margin: 0 0 8px 0;
+    font-size: 1.6rem;
+  }
+  .status {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .status .pct {
+    color: #2e7d32;
+  }
+  .progress-row {
+    display: flex;
+    gap: 6px;
+    margin: 14px 0 24px 0;
+  }
+  .progress-box {
+    width: 30px;
+    height: 30px;
+    border: 2px solid #999;
+    border-radius: 6px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #777;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+  }
+  .progress-box.active {
+    background: #4caf50;
+    border-color: #2e7d32;
+    color: #fff;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(15, var(--box-size));
+    grid-auto-rows: var(--box-size);
+    gap: var(--gap);
+    background: #fff;
+    padding: 16px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .cell {
+    position: relative;
+    width: var(--box-size);
+    height: var(--box-size);
+  }
+  .cell input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .cell label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #bbb;
+    border-radius: 6px;
+    background: #fafafa;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #555;
+    user-select: none;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .cell input[type="checkbox"]:checked + label {
+    background: #4caf50;
+    border-color: #2e7d32;
+    color: #fff;
+  }
+  .cell input[type="checkbox"]:hover + label {
+    border-color: #4caf50;
+  }
+  .weekly-overview {
+    width: 100%;
+    max-width: 760px;
+    margin-bottom: 24px;
+  }
+  .weekly-overview h2 {
+    text-align: center;
+    font-size: 1.1rem;
+    margin: 0 0 12px 0;
+    color: #444;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+  }
+  .stat-card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 14px 10px;
+    text-align: center;
+  }
+  .stat-label {
+    font-size: 0.78rem;
+    color: #777;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 6px;
+  }
+  .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1976d2;
+  }
+  .stat-card.deadline .stat-value {
+    font-size: 1.2rem;
+    color: #d32f2f;
+  }
+  .stat-card.remaining .stat-value {
+    color: #e65100;
+  }
+  .stat-card.done .stat-value {
+    color: #2e7d32;
+  }
+</style>
+</head>
+<body>
+
+<h1>150 Checkbox Tracker</h1>
+<div class="status">
+  <span id="count">0/150</span> &nbsp;&middot;&nbsp; <span class="pct" id="percent">0%</span>
+</div>
+
+<div class="progress-row" id="progressRow"></div>
+
+<div class="weekly-overview">
+  <h2>Weekly Overview</h2>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Weekly Target</div>
+      <div class="stat-value" id="weeklyTarget">21</div>
+    </div>
+    <div class="stat-card done">
+      <div class="stat-label">Done This Week</div>
+      <div class="stat-value" id="weeklyDone">0</div>
+    </div>
+    <div class="stat-card remaining">
+      <div class="stat-label">Remaining This Week</div>
+      <div class="stat-value" id="weeklyRemaining">21</div>
+    </div>
+    <div class="stat-card remaining">
+      <div class="stat-label">Total Remaining</div>
+      <div class="stat-value" id="totalRemaining">150</div>
+    </div>
+    <div class="stat-card deadline">
+      <div class="stat-label">Deadline</div>
+      <div class="stat-value" id="deadline">15/12/2026</div>
+    </div>
+  </div>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<script>
+  const TOTAL = 150;
+  const WEEKLY_TARGET = 21;
+  const STORAGE_KEY = 'checkbox150-state';
+  const grid = document.getElementById('grid');
+  const progressRow = document.getElementById('progressRow');
+  const countEl = document.getElementById('count');
+  const percentEl = document.getElementById('percent');
+  const weeklyDoneEl = document.getElementById('weeklyDone');
+  const weeklyRemainingEl = document.getElementById('weeklyRemaining');
+  const totalRemainingEl = document.getElementById('totalRemaining');
+
+  // Load previously saved state: an array of { checked, checkedAt } entries.
+  // Also supports migrating the older format (a plain array of booleans).
+  function loadState() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if (!Array.isArray(saved)) return [];
+      return saved.map(entry =>
+        typeof entry === 'boolean'
+          ? { checked: entry, checkedAt: null }
+          : { checked: !!entry.checked, checkedAt: entry.checkedAt || null }
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  // Persist the current checked state and check timestamp of all 150 checkboxes.
+  function saveState() {
+    const states = Array.from(document.querySelectorAll('.grid input[type="checkbox"]'))
+      .map(cb => ({ checked: cb.checked, checkedAt: cb.dataset.checkedAt || null }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(states));
+  }
+
+  const savedState = loadState();
+
+  // Build 150 checkboxes (10 rows x 15 columns)
+  for (let i = 1; i <= TOTAL; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = 'chk' + i;
+    const saved = savedState[i - 1];
+    checkbox.checked = !!(saved && saved.checked);
+    if (saved && saved.checkedAt) {
+      checkbox.dataset.checkedAt = saved.checkedAt;
+    }
+    checkbox.addEventListener('change', () => {
+      checkbox.dataset.checkedAt = checkbox.checked ? new Date().toISOString() : '';
+      saveState();
+      updateStatus();
+    });
+
+    const label = document.createElement('label');
+    label.setAttribute('for', checkbox.id);
+    label.textContent = i;
+
+    cell.appendChild(checkbox);
+    cell.appendChild(label);
+    grid.appendChild(cell);
+  }
+
+  // Build 10 progress indicator boxes (10%, 20%, ... 100%)
+  const progressBoxes = [];
+  for (let i = 1; i <= 10; i++) {
+    const box = document.createElement('div');
+    box.className = 'progress-box';
+    box.textContent = (i * 10) + '%';
+    progressRow.appendChild(box);
+    progressBoxes.push(box);
+  }
+
+  // Returns the start (Monday 00:00) and end (next Monday 00:00) of the
+  // current calendar work week (Monday through Sunday).
+  function getCurrentWeekRange() {
+    const now = new Date();
+    const day = now.getDay(); // 0 = Sunday, 1 = Monday, ... 6 = Saturday
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 7);
+    return { start, end };
+  }
+
+  function updateStatus() {
+    const checkboxes = Array.from(document.querySelectorAll('.grid input[type="checkbox"]'));
+    const checked = checkboxes.filter(cb => cb.checked).length;
+    const rawPercent = (checked / TOTAL) * 100;
+    const roundedPercent = Math.round(rawPercent);
+
+    countEl.textContent = `${checked}/${TOTAL}`;
+    percentEl.textContent = `${roundedPercent}%`;
+
+    progressBoxes.forEach((box, idx) => {
+      const threshold = (idx + 1) * 10;
+      box.classList.toggle('active', roundedPercent >= threshold);
+    });
+
+    const { start, end } = getCurrentWeekRange();
+    const weeklyDone = checkboxes.filter(cb => {
+      if (!cb.checked || !cb.dataset.checkedAt) return false;
+      const checkedAt = new Date(cb.dataset.checkedAt);
+      return checkedAt >= start && checkedAt < end;
+    }).length;
+    const weeklyRemaining = Math.max(0, WEEKLY_TARGET - weeklyDone);
+    const totalRemaining = TOTAL - checked;
+
+    weeklyDoneEl.textContent = weeklyDone;
+    weeklyRemainingEl.textContent = weeklyRemaining;
+    totalRemainingEl.textContent = totalRemaining;
+  }
+
+  updateStatus();
+</script>
+
+</body>
+</html>
